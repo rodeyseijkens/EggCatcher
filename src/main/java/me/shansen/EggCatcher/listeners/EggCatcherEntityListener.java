@@ -34,13 +34,17 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 
 public class EggCatcherEntityListener implements Listener {
 
 	FileConfiguration config;
 	JavaPlugin plugin;
 	private final Boolean usePermissions;
+	private final Boolean useOwnedRegionOnly;
 	private final Boolean useCatchChance;
 	private final Boolean looseEggOnFail;
 	private final Boolean useVaultCost;
@@ -62,6 +66,7 @@ public class EggCatcherEntityListener implements Listener {
 		this.config = plugin.getConfig();
 		this.plugin = plugin;
 		this.usePermissions = this.config.getBoolean("UsePermissions", true);
+		this.useOwnedRegionOnly = this.config.getBoolean("UseOwnedRegionOnly", true);
 		this.useCatchChance = this.config.getBoolean("UseCatchChance", true);
 		this.looseEggOnFail = this.config.getBoolean("LooseEggOnFail", true);
 		this.useVaultCost = this.config.getBoolean("UseVaultCost", false);
@@ -147,6 +152,17 @@ public class EggCatcherEntityListener implements Listener {
 						+ eggType.getFriendlyName().toLowerCase())) {
 					player.sendMessage(config
 							.getString("Messages.PermissionFail"));
+					if (!this.looseEggOnFail) {
+						player.getInventory().addItem(new ItemStack(344, 1));
+					}
+					return;
+				}
+			}
+			
+			if (this.useOwnedRegionOnly) {
+				if (!checkMobRegion(player, entity)) {
+					player.sendMessage(config
+							.getString("Messages.RegionFail"));
 					if (!this.looseEggOnFail) {
 						player.getInventory().addItem(new ItemStack(344, 1));
 					}
@@ -241,4 +257,31 @@ public class EggCatcherEntityListener implements Listener {
 			}
 		}
 	}
+	
+	private WorldGuardPlugin getWorldGuard() {
+	    Plugin pluginWG = plugin.getServer().getPluginManager().getPlugin("WorldGuard");
+	 
+	    // WorldGuard may not be loaded
+	    if (pluginWG == null || !(pluginWG instanceof WorldGuardPlugin)) {
+	        return null; // Maybe you want throw an exception instead
+	    }
+	 
+	    return (WorldGuardPlugin) pluginWG;
+	}
+	
+	private boolean checkMobRegion(Player player, Entity entity)
+	{
+		// Check WorldGuard
+        WorldGuardPlugin worldGuard = getWorldGuard();
+        
+        if(worldGuard != null)
+        {
+    		return worldGuard.canBuild(player,
+    				entity.getLocation().getBlock().getRelative(0, -1, 0));        	
+        }
+        //        
+        
+        // No region plugin installed
+        return false;
+	}	
 }
